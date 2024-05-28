@@ -159,6 +159,13 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-# Project extensions
+# OPAC-TABS Project
+# extensions
 .csv
 .zip
+
+# config
+config.ini
+
+# directories
+output

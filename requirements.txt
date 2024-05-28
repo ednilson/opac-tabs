@@ -1,0 +1,2 @@
+mongoengine
+git+https://github.com/scieloorg/opac_schema#egg=opac_schema
