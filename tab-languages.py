@@ -12,17 +12,15 @@ from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 from opac_schema.v1 import models
 
 
-NOW = time.strftime('%Y%m%d_%H%M')
-
-config = configparser.ConfigParser()
-config.read('config.ini')
-dirout = config._sections['DIRPATH']['diroutput']
+CONFIG = configparser.ConfigParser()
+CONFIG.read('config.ini')
+TIMENOW = time.strftime('%Y%m%d_%H%M')
 
 
 def connect_mongodb():
     try:
         # reads config
-        mdb = config._sections['MONGO-OPAC']
+        mdb = CONFIG._sections['MONGO-OPAC']
 
         # reads reference
         rp = ReadPreference.SECONDARY if mdb['readpreference'] == 'secondary' else ReadPreference.PRIMARY
@@ -44,8 +42,8 @@ def get_data(item):
     
     # aka
     aka = ''
-    if item.scielo_pids and item.scielo_pids.get("other"):
-        aka = set(item.scielo_pids.get("other"))
+    if item.scielo_pids and item.scielo_pids.get('other'):
+        aka = set(item.scielo_pids.get('other'))
         try:
             aka.remove(item._id)
         except KeyError:
@@ -58,10 +56,12 @@ def get_data(item):
     
     # languages
     languages = set()
-    for item_ in item.pdfs:
-        languages.add(item_["lang"].strip().lower())
-    for item_ in item.htmls:
-        languages.add(item_["lang"].strip().lower())
+    for lang in item.pdfs:
+        if lang['lang'] != '':
+            languages.add(lang['lang'].strip().lower())
+    for lang in item.htmls:
+        if lang['lang'] != '':
+            languages.add(lang['lang'].strip().lower())
 
     # languages [pt, es, en]
     doc_pt = 1 if 'pt' in languages else 0
@@ -69,9 +69,8 @@ def get_data(item):
     doc_en = 1 if 'en' in languages else 0
 
     # other languages
-    xlang = set(languages)
-
-    for l in ("pt", "en", "es"):
+    xlang = languages.copy()
+    for l in ('pt', 'en', 'es'):
         try:
             xlang.remove(l)
         except Exception as e:
@@ -99,9 +98,10 @@ def main():
     # MongoDB Connection
     connect_mongodb()
     
-    # File names output
-    csvfilename = os.path.join(dirout, 'opac-tabs-{now}.csv'.format(now=NOW))
-    zipfilename = os.path.join(dirout, 'opac-tabs-{now}.zip'.format(now=NOW))
+    # Directory and file names output
+    dirout = CONFIG._sections['DIRPATH']['diroutput']
+    csvfilename = os.path.join(dirout, 'opac-tabs-{now}.csv'.format(now=TIMENOW))
+    zipfilename = os.path.join(dirout, 'opac-tabs-{now}.zip'.format(now=TIMENOW))
     
     # Create output directory
     if not os.path.exists(dirout):
@@ -113,7 +113,7 @@ def main():
                   'document_other_languages',
                   ]
 
-    with open(csvfilename, mode="w") as csvfile:
+    with open(csvfilename, mode='w') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
 
@@ -127,6 +127,8 @@ def main():
             except Exception as e:
                 logging.info(item._id)
                 logging.exception(e)
+        
+    csvfile.close()
 
     # ZipFile
     try:
