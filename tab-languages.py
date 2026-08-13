@@ -17,6 +17,10 @@ CONFIG.read('config.ini')
 TIMENOW = time.strftime('%Y%m%d_%H%M')
 
 
+logging.basicConfig(filename='log/tab-language.info.txt', level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
 def connect_mongodb():
     try:
         # reads config
@@ -100,8 +104,8 @@ def main():
     
     # Directory and file names output
     dirout = CONFIG._sections['DIRPATH']['diroutput']
-    csvfilename = os.path.join(dirout, 'opac-tabs-{now}.csv'.format(now=TIMENOW))
-    zipfilename = os.path.join(dirout, 'opac-tabs-{now}.zip'.format(now=TIMENOW))
+    csvfilename = os.path.join(dirout, 'opac-tabs-languages-{now}.csv'.format(now=TIMENOW))
+    zipfilename = os.path.join(dirout, 'opac-tabs-languages-{now}.zip'.format(now=TIMENOW))
     
     # Create output directory
     if not os.path.exists(dirout):
@@ -117,10 +121,12 @@ def main():
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
 
-        query = models.Article.objects.filter(is_public=True)
-        total = str(query.count())
-        logging.info('total records: ', total)
-        
+        query = models.Article.objects.no_cache().filter(is_public=True).batch_size(10)
+
+        total = '%s: %s' % ('total records: ', query.count())
+        print(total)
+        logging.info(total)
+
         for item in query:
             try:
                 writer.writerow(get_data(item))
@@ -144,7 +150,7 @@ def main():
         logging.exception(e)
 
     # Remove old zip files keeping the 3 most recent
-    ld = [fzip for fzip in os.listdir(dirout) if fzip.startswith('opac-tabs-') and fzip.endswith('.zip')]
+    ld = [fzip for fzip in os.listdir(dirout) if fzip.startswith('opac-tabs-languages-') and fzip.endswith('.zip')]
     ld.sort()
     if len(ld) > 3:
         try:
